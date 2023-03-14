@@ -3,19 +3,25 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerMovement : NetworkBehaviour
 {
 
     private Rigidbody rbPlayer;
     private Vector3 direction = Vector3.zero;
     public float speed = 10.0f;
-    public GameObject spawnPoint = null;
+    public GameObject[] spawnPoints = null;
     private Dictionary<Item.VegetableType, int> ItemInventory = new Dictionary<Item.VegetableType, int>(); 
 
     // Start is called before the first frame update
     void Start()
     {
+        if(!isLocalPlayer)
+        {
+            return;
+        }
+
         rbPlayer = GetComponent<Rigidbody>();
+        spawnPoints = GameObject.FindGameObjectsWithTag("Respawn");
 
         foreach(Item.VegetableType item in System.Enum.GetValues(typeof(Item.VegetableType)))
         {
@@ -42,6 +48,11 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+
         float horMove = Input.GetAxis("Horizontal");
         float verMove = Input.GetAxis("Vertical");
 
@@ -50,6 +61,12 @@ public class PlayerMovement : MonoBehaviour
 
     void FixedUpdate()
     {
+
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+
         rbPlayer.AddForce(direction* speed, ForceMode.Force);
 
         if(transform.position.z > 40)
@@ -64,12 +81,22 @@ public class PlayerMovement : MonoBehaviour
 
     private void Respawn()
     {
-        rbPlayer.MovePosition(spawnPoint.transform.position);
+        int index = 0;
+        while (Physics.CheckBox(spawnPoints[index].transform.position, new Vector3(1.5f, 1.5f, 1.5f)))
+        {
+            index++;
+        }
+        rbPlayer.MovePosition(spawnPoints[index].transform.position);
     }
 
-    private void OnTriggerEnter(Collider other)
+    private void OnTriggerStay(Collider other)
     {
-        if (other.CompareTag("Item"))
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+
+        if (other.CompareTag("Item") && Input.GetKeyDown(KeyCode.Space))
         {
             Item item = other.gameObject.GetComponent<Item>();
             AddToInventory(item);
@@ -79,6 +106,11 @@ public class PlayerMovement : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+
         if (other.CompareTag("River"))
         {
             Respawn();
